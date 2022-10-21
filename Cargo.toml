@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "3.2.21", features = ["derive"] }
+ssh2 = { version = "0.9.3" }
+home = "0.5.4"
+indicatif = "0.11.0"
