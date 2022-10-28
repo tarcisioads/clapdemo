@@ -4,7 +4,7 @@ use indicatif::ProgressBar;
 use ssh2::Session;
 use std::env;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::net::TcpStream;
 use std::path::Path;
 use std::path::PathBuf;
@@ -43,15 +43,11 @@ fn build(folder: &str) {
 
     println!("build nb/app/erp");
 
-    let output = Command::new("npm")
+    Command::new("npm")
         .arg("run")
         .arg("build")
-        .output()
-        .expect("failed to execute process");
-
-    let hello = output.stdout;
-
-    io::stdout().write_all(&hello).unwrap();
+        .spawn()
+        .expect("Erro ao executar build no projeto");
 }
 
 fn send(folder: &str) {
@@ -79,25 +75,38 @@ fn send(folder: &str) {
     owned_string.push_str(&"/dist/build.js");
     path.push(owned_string);
 
-    println!("{}", path.display());
+    println!("Arquivo: {}", path.display());
 
-    let source = File::open(path);
-    let metadata = source.metadata().unwrap();
-    let pb = ProgressBar::new(metadata.len());
-    let contents = pb.wrap_read(source);
+    let source = File::open(path).expect("Erro ao carregar arquivo build");
+    let mut len = 0;
+    if let Ok(metadata) = source.metadata() {
+        len = metadata.len();
+    }
+    println!("Len {}", len);
+    let pb = ProgressBar::new(len);
 
-    println!("read build file {:?}", contents);
+    let mut buffer = Vec::new();
+    io::copy(&mut pb.wrap_read(source), &mut buffer);
+
+    let s = match std::str::from_utf8(&buffer) {
+        Ok(v) => v,
+        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+
+    println!("buffer len {}", buffer.len());
+    println!("buffer len {}", s.len() as u64);
 
     // Write the file
     let mut remote_file = sess
         .scp_send(
-            Path::new("../../inetpub/wwwroot/app/dist/build.js"),
+            Path::new("../../inetpub/wwwroot/app/dist/build2.js"),
             0o644,
-            10,
+            len as u64,
             None,
         )
         .unwrap();
-    remote_file.write(contents);
+
+    remote_file.write(&buffer);
     // Close the channel and wait for the whole content to be tranferred
     remote_file.send_eof().unwrap();
     remote_file.wait_eof().unwrap();
