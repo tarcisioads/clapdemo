@@ -4,7 +4,7 @@ use indicatif::ProgressBar;
 use ssh2::Session;
 use std::env;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::net::TcpStream;
 use std::path::Path;
 use std::path::PathBuf;
@@ -21,6 +21,9 @@ struct Args {
 
     #[clap(short, long, value_parser)]
     loja: bool,
+
+    #[clap(short, long, value_parser)]
+    database: bool,
 }
 
 fn build(folder: &str) {
@@ -41,13 +44,47 @@ fn build(folder: &str) {
 
     assert!(env::set_current_dir(&path).is_ok());
 
-    println!("build nb/app/erp");
+    println!("start build");
 
     Command::new("npm")
         .arg("run")
         .arg("build")
         .spawn()
+        .unwrap()
+        .wait()
         .expect("Erro ao executar build no projeto");
+
+    println!("finish build");
+}
+
+fn update_webdata() {
+    let mut path = PathBuf::new();
+
+    if cfg!(target_os = "windows") {
+        path.push("c:/");
+    } else {
+        let home = home_dir().expect("no home!");
+        path.push(home);
+    }
+    path.push("nb/app/");
+
+    if path.is_dir() {
+        println!("{}", path.display());
+    }
+
+    assert!(env::set_current_dir(&path).is_ok());
+
+    println!("start update database");
+
+    Command::new("npm")
+        .arg("run")
+        .arg("build")
+        .spawn()
+        .unwrap()
+        .wait()
+        .expect("Erro ao executar build no projeto");
+
+    println!("finish update database");
 }
 
 fn send(folder: &str) {
@@ -86,32 +123,22 @@ fn send(folder: &str) {
     let pb = ProgressBar::new(len);
 
     let mut buffer = Vec::new();
-    io::copy(&mut pb.wrap_read(source), &mut buffer);
-
-    let s = match std::str::from_utf8(&buffer) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
+    io::copy(&mut pb.wrap_read(source), &mut buffer).unwrap();
 
     println!("buffer len {}", buffer.len());
-    println!("buffer len {}", s.len() as u64);
 
-    // Write the file
-    let mut remote_file = sess
-        .scp_send(
-            Path::new("../../inetpub/wwwroot/app/dist/build2.js"),
-            0o644,
-            len as u64,
-            None,
-        )
+    let sftp = sess.sftp().unwrap();
+
+    let file_remote = match folder {
+        "loja" => Path::new("../../inetpub/wwwroot/loja/dist/build.js"),
+        "erp" => Path::new("../../inetpub/wwwroot/app/dist/build.js"),
+        _ => Path::new("../../inetpub/wwwroot/app/dist/build.js"),
+    };
+
+    sftp.create(&file_remote)
+        .unwrap()
+        .write_all(&buffer)
         .unwrap();
-
-    remote_file.write(&buffer);
-    // Close the channel and wait for the whole content to be tranferred
-    remote_file.send_eof().unwrap();
-    remote_file.wait_eof().unwrap();
-    remote_file.close().unwrap();
-    remote_file.wait_close().unwrap();
 }
 
 fn main() {
