@@ -4,6 +4,7 @@ use indicatif::ProgressBar;
 use ssh2::Session;
 use std::env;
 use std::fs::File;
+use std::io::BufRead;
 use std::io::{self, Write};
 use std::net::TcpStream;
 use std::path::Path;
@@ -57,32 +58,92 @@ fn build(folder: &str) {
     println!("finish build");
 }
 
-fn update_webdata() {
-    let mut path = PathBuf::new();
+// The output is wrapped in a Result to allow matching on errors
+// Returns an Iterator to the Reader of the lines of the file.
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(filename)?;
+    Ok(std::io::BufReader::new(file).lines())
+}
 
+fn send_backend_scripts() {
+    // Connect to the local SSH server
+    let tcp = TcpStream::connect("ec2-52-202-145-226.compute-1.amazonaws.com:22").unwrap();
+    let mut sess = Session::new().unwrap();
+    sess.set_tcp_stream(tcp);
+    sess.handshake().unwrap();
+
+    sess.userauth_password("atualizacao", "@1643Tar1643")
+        .unwrap();
+    let authenticated = sess.authenticated();
+
+    println!("authenticated {:?}", authenticated);
+
+    let mut path = PathBuf::new();
     if cfg!(target_os = "windows") {
-        path.push("c:/");
+        path.push("c:");
     } else {
         let home = home_dir().expect("no home!");
         path.push(home);
     }
-    path.push("nb/app/");
 
-    if path.is_dir() {
-        println!("{}", path.display());
+    let mut path_dbadmin = path.to_owned();
+    path_dbadmin.push(&"nb/backend/DBADMIN.SQL");
+
+    println!("DBADMIN File {}", path_dbadmin.display());
+
+    // File hosts must exist in current path before this produces output
+    if let Ok(lines) = read_lines(path_dbadmin) {
+        // Consumes the iterator, returns an (Optional) String
+        for line in lines {
+            if let Ok(file) = line {
+                println!("Send file {} to server", file);
+                let mut owned_string: String = "/nb/backend/".to_owned();
+
+                if cfg!(target_os = "windows") {
+                    owned_string.push_str(&file);
+                } else {
+                    owned_string.push_str(&file.replace("\\", "/"));
+                }
+
+                let mut file_path = String::new();
+                file_path.push_str(path.to_str().unwrap());
+                file_path.push_str(&owned_string);
+
+                let source = File::open(file_path).expect("Erro ao carregar arquivo ");
+                let mut len = 0;
+                if let Ok(metadata) = source.metadata() {
+                    len = metadata.len();
+                }
+                let pb = ProgressBar::new(len);
+
+                let mut buffer = Vec::new();
+                io::copy(&mut pb.wrap_read(source), &mut buffer).unwrap();
+
+                let sftp = sess.sftp().unwrap();
+
+                let mut path_remote = "../../nb/backend/".to_owned();
+                path_remote.push_str(&file);
+
+                let file_remote = Path::new(&path_remote);
+
+                sftp.create(&file_remote)
+                    .unwrap()
+                    .write_all(&buffer)
+                    .unwrap();
+
+                println!("File {} sent to server", file);
+            }
+        }
     }
+}
 
-    assert!(env::set_current_dir(&path).is_ok());
-
+fn update_database() {
     println!("start update database");
 
-    Command::new("npm")
-        .arg("run")
-        .arg("build")
-        .spawn()
-        .unwrap()
-        .wait()
-        .expect("Erro ao executar build no projeto");
+    send_backend_scripts();
 
     println!("finish update database");
 }
@@ -160,6 +221,10 @@ fn main() {
     }
     if args.loja {
         send("loja");
+    }
+
+    if args.database {
+        update_database();
     }
 
     println!("finish");
