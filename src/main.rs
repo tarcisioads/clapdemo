@@ -178,7 +178,7 @@ fn update_webdata() {
 fn update_database() {
     println!("start update database");
 
-    //send_backend_scripts();
+    send_backend_scripts();
 
     update_webdata();
 
@@ -217,13 +217,10 @@ fn send(folder: &str) {
     if let Ok(metadata) = source.metadata() {
         len = metadata.len();
     }
-    println!("Len {}", len);
     let pb = ProgressBar::new(len);
 
     let mut buffer = Vec::new();
     io::copy(&mut pb.wrap_read(source), &mut buffer).unwrap();
-
-    println!("buffer len {}", buffer.len());
 
     let sftp = sess.sftp().unwrap();
 
