@@ -4,6 +4,7 @@ use indicatif::ProgressBar;
 use ssh2::Session;
 use std::env;
 use std::fs::File;
+use std::io::prelude::*;
 use std::io::BufRead;
 use std::io::{self, Write};
 use std::net::TcpStream;
@@ -140,10 +141,40 @@ fn send_backend_scripts() {
     }
 }
 
+fn update_webdata() {
+    // Connect to the local SSH server
+    let tcp = TcpStream::connect("ec2-52-202-145-226.compute-1.amazonaws.com:22").unwrap();
+    let mut sess = Session::new().unwrap();
+    sess.set_tcp_stream(tcp);
+    sess.handshake().unwrap();
+
+    sess.userauth_password("atualizacao", "@1643Tar1643")
+        .unwrap();
+    let authenticated = sess.authenticated();
+
+    println!("authenticated {:?}", authenticated);
+
+    let mut channel = sess.channel_session().unwrap();
+    channel.exec("c:\\nb\\nbadmin\\bin\\nbadmin.exe -v -server NBTESTE -schema WEBDATA -path c:\\nb\\backend -update_schema").unwrap();
+    let mut buffer = Vec::new();
+
+    // read the whole file
+    channel
+        .read_to_end(&mut buffer)
+        .expect("falha ao pegar output");
+
+    let s = unsafe { std::str::from_utf8_unchecked(&buffer) };
+    println!("result: {}", s);
+    channel.wait_close();
+    println!("{}", channel.exit_status().unwrap());
+}
+
 fn update_database() {
     println!("start update database");
 
-    send_backend_scripts();
+    //send_backend_scripts();
+
+    update_webdata();
 
     println!("finish update database");
 }
