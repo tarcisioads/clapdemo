@@ -123,6 +123,12 @@ fn send_backend_scripts() {
                 let mut buffer = Vec::new();
                 io::copy(&mut pb.wrap_read(source), &mut buffer).unwrap();
 
+                let s = String::from_utf8(buffer).expect("Found invalid UTF-8");
+
+                let s2 = s.replace("set define off;", "");
+
+                let buffer = s2.as_bytes();
+
                 let sftp = sess.sftp().unwrap();
 
                 let mut path_remote = "../../nb/backend/".to_owned();
