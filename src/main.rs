@@ -184,7 +184,7 @@ fn update_webdata() {
 
 fn update_nbdata(nbdata:String) {
 
-    println!("Atualizacao: NBDATA{}", nbdata);
+    println!("Atualizacao: NBDATA000{}", nbdata);
 
     // Connect to the local SSH server
     let tcp = TcpStream::connect("ec2-52-202-145-226.compute-1.amazonaws.com:22").unwrap();
