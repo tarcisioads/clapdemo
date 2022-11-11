@@ -182,12 +182,49 @@ fn update_webdata() {
     println!("{}", channel.exit_status().unwrap());
 }
 
+fn update_nbdata(nbdata:String) {
+
+    println!("Atualizacao: NBDATA{}", nbdata);
+
+    // Connect to the local SSH server
+    let tcp = TcpStream::connect("ec2-52-202-145-226.compute-1.amazonaws.com:22").unwrap();
+    let mut sess = Session::new().unwrap();
+    sess.set_tcp_stream(tcp);
+    sess.handshake().unwrap();
+
+    sess.userauth_password("atualizacao", "@1643Tar1643")
+        .unwrap();
+    let authenticated = sess.authenticated();
+
+    println!("authenticated {:?}", authenticated);
+
+    let mut channel = sess.channel_session().unwrap();
+    let command = format!("c:\\nb\\nbadmin\\bin\\nbadmin.exe -v -server NBTESTE -schema NBDATA000{} -path c:\\nb\\backend -update_schema", nbdata);
+    channel.exec(command.as_str()).unwrap();
+    let mut buffer = Vec::new();
+
+    // read the whole file
+    channel
+        .read_to_end(&mut buffer)
+        .expect("falha ao pegar output");
+
+    let s = unsafe { std::str::from_utf8_unchecked(&buffer) };
+    println!("result: {}", s);
+    channel.wait_close();
+    println!("{}", channel.exit_status().unwrap());
+}
+
+
 fn update_database() {
     println!("start update database");
 
     send_backend_scripts();
 
     update_webdata();
+
+    for n in 179..210 {
+        update_nbdata(n.to_string());
+    }
 
     println!("finish update database");
 }
