@@ -12,6 +12,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
+#[cfg(windows)]
+pub const NPM: &'static str = "npm.cmd";
+
+#[cfg(not(windows))]
+pub const NPM: &'static str = "npm";
+
 #[derive(Parser, Debug)]
 #[clap(version)]
 struct Args {
@@ -47,8 +53,9 @@ fn build(folder: &str) {
     assert!(env::set_current_dir(&path).is_ok());
 
     println!("start build");
+    println!("{}", env::current_dir().unwrap().to_string_lossy());
 
-    Command::new("npm")
+    Command::new(NPM)
         .arg("run")
         .arg("build")
         .spawn()
@@ -186,6 +193,7 @@ fn update_database() {
 }
 
 fn send(folder: &str) {
+    println!("start send frontend");
     // Connect to the local SSH server
     let tcp = TcpStream::connect("ec2-52-202-145-226.compute-1.amazonaws.com:22").unwrap();
     let mut sess = Session::new().unwrap();
@@ -234,6 +242,8 @@ fn send(folder: &str) {
         .unwrap()
         .write_all(&buffer)
         .unwrap();
+
+    println!("finish send frontend");
 }
 
 fn main() {
