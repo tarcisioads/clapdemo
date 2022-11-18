@@ -152,6 +152,76 @@ fn send_backend_scripts() {
             }
         }
     }
+
+    let file_path: String = "/nb/backend/_________SCRIPT VIEWS.sql".to_owned();
+
+    println!("Send file {} to server", file_path);
+
+    let source = File::open(file_path).expect("Erro ao carregar arquivo ");
+    let mut len = 0;
+    if let Ok(metadata) = source.metadata() {
+        len = metadata.len();
+    }
+    let pb = ProgressBar::new(len);
+
+    let mut buffer = Vec::new();
+    io::copy(&mut pb.wrap_read(source), &mut buffer).unwrap();
+
+    let s = String::from_utf8(buffer).expect("Found invalid UTF-8");
+
+    let s2 = s.replace("set define off;", "");
+
+    let buffer = s2.as_bytes();
+
+    let sftp = sess.sftp().unwrap();
+
+    let path_remote = "../../nb/nbadmin/scripts/views.sql".to_owned();
+
+    let file_remote = Path::new(&path_remote);
+
+    sftp.create(&file_remote)
+        .unwrap()
+        .write_all(&buffer)
+        .unwrap();
+
+    println!("File {} sent to server", path_remote);
+
+
+    let file_path: String = "/nb/backend/_________SCRIPT SEQUENCES.sql".to_owned();
+
+    println!("Send file {} to server", file_path);
+
+    let source = File::open(file_path).expect("Erro ao carregar arquivo ");
+    let mut len = 0;
+    if let Ok(metadata) = source.metadata() {
+        len = metadata.len();
+    }
+    let pb = ProgressBar::new(len);
+
+    let mut buffer = Vec::new();
+    io::copy(&mut pb.wrap_read(source), &mut buffer).unwrap();
+
+    let s = String::from_utf8(buffer).expect("Found invalid UTF-8");
+
+    let s2 = s.replace("set define off;", "");
+
+    let buffer = s2.as_bytes();
+
+    let sftp = sess.sftp().unwrap();
+
+    let path_remote = "../../nb/nbadmin/scripts/sequences.sql".to_owned();
+
+    let file_remote = Path::new(&path_remote);
+
+    sftp.create(&file_remote)
+        .unwrap()
+        .write_all(&buffer)
+        .unwrap();
+
+    println!("File {} sent to server", path_remote);
+
+
+
 }
 
 fn update_webdata() {
