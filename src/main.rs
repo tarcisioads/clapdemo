@@ -11,6 +11,7 @@ use std::net::TcpStream;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use oracle::{Connection, Error};
 
 #[cfg(windows)]
 pub const NPM: &'static str = "npm.cmd";
@@ -32,6 +33,17 @@ struct Args {
 
     #[clap(short, long, value_parser)]
     database: bool,
+}
+
+
+fn update_procedures_database() {
+
+    let conn = Connection::connect("nbapp","1", "notabrasil-2.cgvmwsljznim.us-east-1.rds.amazonaws.com").expect("falha ao conectar na base de dados"); 
+
+    conn.execute("", &[]).expect("falha ao atualizar as bases");
+
+    conn.commit().expect("falha ao commitar alteracoes");
+
 }
 
 fn build(folder: &str) {
