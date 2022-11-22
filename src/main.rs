@@ -40,9 +40,13 @@ fn update_procedures_database() {
 
     let conn = Connection::connect("nbapp","1", "notabrasil-2.cgvmwsljznim.us-east-1.rds.amazonaws.com").expect("falha ao conectar na base de dados"); 
 
-    conn.execute("", &[]).expect("falha ao atualizar as bases");
+    conn.execute("delete from metalog;", &[]).expect("falha ao excluir metalog");
 
-    conn.commit().expect("falha ao commitar alteracoes");
+    conn.commit().expect("falha no commit excluir metalog");
+
+    conn.execute("BEGIN DBADMIN.UPDATE_PROCEDURES; END;/", &[]).expect("falha ao atualizar bases de dados");
+
+    conn.commit().expect("falha no commit atualizar bases de dados");
 
 }
 
@@ -307,6 +311,8 @@ fn update_database() {
     for n in 179..210 {
         update_nbdata(n.to_string());
     }
+
+    update_procedures_database();
 
     println!("finish update database");
 }
