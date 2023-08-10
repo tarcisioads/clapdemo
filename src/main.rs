@@ -1,3 +1,6 @@
+mod database;
+mod utils;
+
 use clap::Parser;
 use home::home_dir;
 use indicatif::ProgressBar;
@@ -11,7 +14,7 @@ use std::net::TcpStream;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
-use oracle::{Connection, Error};
+use oracle::{Connection};
 
 #[cfg(windows)]
 pub const NPM: &'static str = "npm.cmd";
@@ -33,6 +36,9 @@ struct Args {
 
     #[clap(short, long, value_parser)]
     database: bool,
+
+    #[clap(short, long)]
+    packages: Option<String>,
 }
 
 
@@ -236,8 +242,6 @@ fn send_backend_scripts() {
 
     println!("File {} sent to server", path_remote);
 
-
-
 }
 
 fn update_webdata() {
@@ -264,7 +268,7 @@ fn update_webdata() {
 
     let s = unsafe { std::str::from_utf8_unchecked(&buffer) };
     println!("result: {}", s);
-    channel.wait_close();
+    let _ = channel.wait_close();
     println!("{}", channel.exit_status().unwrap());
 }
 
@@ -296,7 +300,7 @@ fn update_nbdata(nbdata:String) {
 
     let s = unsafe { std::str::from_utf8_unchecked(&buffer) };
     println!("result: {}", s);
-    channel.wait_close();
+    let _ = channel.wait_close();
     println!("{}", channel.exit_status().unwrap());
 }
 
@@ -394,6 +398,11 @@ fn main() {
 
     if args.database {
         update_database();
+    }
+
+    if let Some(database) = &args.packages {
+        database::update_database::run_packages(database);
+               
     }
 
     println!("finish");
