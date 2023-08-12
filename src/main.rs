@@ -16,9 +16,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use oracle::{Connection};
 
-#[cfg(windows)]
-pub const NPM: &'static str = "npm.cmd";
-
 #[cfg(not(windows))]
 pub const NPM: &'static str = "npm";
 
@@ -37,8 +34,11 @@ struct Args {
     #[clap(short, long, value_parser)]
     database: bool,
 
-    #[clap(short, long)]
+    #[clap(long)]
     packages: Option<String>,
+
+    #[clap(short, long, value_parser)]
+    print: bool,
 }
 
 
@@ -401,7 +401,7 @@ fn main() {
     }
 
     if let Some(database) = &args.packages {
-        database::update_database::run_packages(database);
+        database::update_database::run_packages(database, args.print);
                
         println!("finish run packages");
     }

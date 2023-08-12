@@ -12,20 +12,23 @@ use std::path::Path;
 use crate::utils::utils::read_lines;
 
 
-fn send_backend_scripts(db_name:&String) {
+fn send_backend_scripts(db_name:&String, log:bool) {
     dotenv().ok();
 
     let database_pwd = env::var("DATABASE_PWD").expect("DATABASE_PWD not set");
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
+    let server_url = env::var("SERVER_URL").expect("SERVER_URL not set");
+    let server_usr = env::var("SERVER_USR").expect("SERVER_USR not set");
+    let server_pwd = env::var("SERVER_PWD").expect("SERVER_PWD not set");
 
 
     // Connect to the local SSH server
-    let tcp = TcpStream::connect("ec2-52-202-145-226.compute-1.amazonaws.com:22").unwrap();
+    let tcp = TcpStream::connect(server_url).unwrap();
     let mut sess = Session::new().unwrap();
     sess.set_tcp_stream(tcp);
     sess.handshake().unwrap();
 
-    sess.userauth_password("atualizacao", "@1643Tar1643")
+    sess.userauth_password(&server_usr, &server_pwd)
         .unwrap();
     let authenticated = sess.authenticated();
 
@@ -49,7 +52,9 @@ fn send_backend_scripts(db_name:&String) {
 
                 let file_path = format!("{}/nb/backend/{}", path, file.replace("\\", "/"));
 
-                println!("Send file {} to server", file_path);
+                if log {
+                    println!("Send file {} to server", file_path);
+                }   
 
                 let mut source = File::open(file_path).expect("Erro ao carregar arquivo ");
 
@@ -71,11 +76,15 @@ fn send_backend_scripts(db_name:&String) {
                     .write_all(&buffer)
                     .unwrap();
 
-                println!("File {} sent to server", file);
+                if log {
+                    println!("File {} sent to server", file);
+                }
 
                 let mut channel = sess.channel_session().unwrap();
                 let cmd = format!("echo exit | sqlplus {}/{}@{} @{}", db_name, database_pwd, database_url, path_remote.replace("/","\\"));
-                println!("run script {} on server", cmd);
+                if log {
+                    println!("run script {} on server", cmd);
+                }
                 channel.exec(cmd.as_str()).unwrap();
                 let mut buffer = Vec::new();
 
@@ -85,10 +94,14 @@ fn send_backend_scripts(db_name:&String) {
                     .expect("falha ao pegar output");
 
                 let s = unsafe { std::str::from_utf8_unchecked(&buffer) };
-                println!("{}", s);
+                if log {
+                    println!("{}", s);
+                }
  
                 let _ = channel.wait_close();
-                println!("{}", channel.exit_status().unwrap());
+                if log {
+                    println!("{}", channel.exit_status().unwrap());
+                }
 
 
             }
@@ -99,6 +112,6 @@ fn send_backend_scripts(db_name:&String) {
 
 }
 
-pub fn run_packages(db_name:&String) {
-    send_backend_scripts(db_name);
+pub fn run_packages(db_name:&String, log:bool) {
+    send_backend_scripts(db_name, log);
 }
