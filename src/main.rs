@@ -403,6 +403,7 @@ fn main() {
     if let Some(database) = &args.packages {
         database::update_database::run_packages(database);
                
+        println!("finish run packages");
     }
 
     println!("finish");
